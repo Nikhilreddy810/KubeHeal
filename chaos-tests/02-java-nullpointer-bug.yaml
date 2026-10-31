@@ -1,0 +1,23 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: test-java-nullpointer-bug
+  labels:
+    app: backend-service
+spec:
+  restartPolicy: Never
+  containers:
+  - name: java-app
+    image: busybox:latest
+    command: ["sh", "-c"]
+    args:
+    - |
+      echo "2026-10-31 17:15:02.104 [main] INFO  c.n.flight.service.BookingService - Initializing Booking Engine v2.1.0..."
+      echo "2026-10-31 17:15:03.450 [http-nio-8080-exec-1] ERROR o.s.b.w.s.s.ErrorPageFilter - Forwarding to error page from request [/api/bookings/reserve] due to exception"
+      echo "java.lang.NullPointerException: Cannot invoke 'com.nikhil.flight.model.User.getUserId()' because 'customer' is null"
+      echo "    at com.nikhil.flight.service.BookingServiceImpl.reserveSeat(BookingServiceImpl.java:142)"
+      echo "    at com.nikhil.flight.controller.BookingController.createBooking(BookingController.java:58)"
+      echo "    at jdk.internal.reflect.NativeMethodAccessorImpl.invoke0(Native Method)"
+      echo "    at org.springframework.web.method.support.InvocableHandlerMethod.doInvoke(InvocableHandlerMethod.java:205)"
+      echo "FATAL: Process terminated abnormally with exit code 1"
+      exit 1

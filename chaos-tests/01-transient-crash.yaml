@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: test-transient-crash
+  labels:
+    app: test-transient-crash
+spec:
+  restartPolicy: Always
+  containers:
+  - name: transient-crasher
+    image: busybox:latest
+    command: ["sh", "-c", "echo 'Transient container initialized...'; sleep 3; echo 'Simulating sudden transient process crash!'; exit 1"]
