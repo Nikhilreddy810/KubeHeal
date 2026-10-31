@@ -1,0 +1,33 @@
+replicaCount: 1
+
+image:
+  repository: nikhilreddy810/kubeheal
+  pullPolicy: IfNotPresent
+  tag: "1.0.0"
+
+targetNamespace: "default"
+
+config:
+  geminiApiKey: ""  # Optional: leave empty to use built-in deterministic heuristic SRE engine
+  modelName: "gemini-1.5-flash"
+  autoRemediationEnabled: true
+  debounceSeconds: 60
+
+serviceAccount:
+  create: true
+  name: "kubeheal-sa"
+
+rbac:
+  create: true
+
+resources:
+  limits:
+    cpu: 200m
+    memory: 256Mi
+  requests:
+    cpu: 50m
+    memory: 64Mi
+
+nodeSelector: {}
+tolerations: []
+affinity: {}

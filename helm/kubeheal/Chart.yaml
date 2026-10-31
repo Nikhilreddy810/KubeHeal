@@ -1,0 +1,17 @@
+apiVersion: v2
+name: kubeheal
+description: A Helm chart for KubeHeal - Autonomous AI-Powered Kubernetes Self-Healing & RCA Operator
+type: application
+version: 0.1.0
+appVersion: "1.0.0"
+maintainers:
+  - name: Nikhil Reddy Levaku
+    email: levakunikhilreddy8@gmail.com
+    url: https://github.com/Nikhilreddy810
+keywords:
+  - kubernetes
+  - aiops
+  - self-healing
+  - sre
+  - llm
+  - gemini
