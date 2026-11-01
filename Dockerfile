@@ -7,7 +7,7 @@ COPY gradle gradle
 COPY build.gradle settings.gradle ./
 COPY src src
 
-RUN chmod +x gradlew && ./gradlew bootJar --no-daemon
+RUN sed -i 's/\r$//' gradlew && chmod +x gradlew && ./gradlew bootJar --no-daemon
 
 # Final runtime image
 FROM eclipse-temurin:21-jre-alpine

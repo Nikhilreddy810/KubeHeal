@@ -1,0 +1,23 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+
+metadata:
+  name: kubeheal
+  namespace: argocd
+
+spec:
+  project: default
+
+  source:
+    repoURL: https://github.com/Nikhilreddy810/KubeHeal.git
+    targetRevision: main
+    path: helm/kubeheal
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: default
+
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
