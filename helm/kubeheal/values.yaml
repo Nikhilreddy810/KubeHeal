@@ -1,7 +1,7 @@
 replicaCount: 1
 
 image:
-  repository: nikhilreddy810/kubeheal
+  repository: nikhilreddy0511/kubeheal
   pullPolicy: IfNotPresent
   tag: "1.0.0"
 
