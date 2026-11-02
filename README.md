@@ -1,195 +1,134 @@
-# 🤖 KubeHeal: Autonomous AI-Powered Kubernetes Self-Healing & RCA Operator
+# KubeHeal: Autonomous AI-Powered Kubernetes SRE Operator & GitOps Platform
 
-[![Kubernetes](https://img.shields.io/badge/Kubernetes-v1.30+-326CE5.svg?style=for-the-badge&logo=kubernetes&logoColor=white)](https://kubernetes.io/)
-[![Helm 3](https://img.shields.io/badge/Helm-v3.x-0F1689.svg?style=for-the-badge&logo=helm&logoColor=white)](https://helm.sh/)
-[![Docker](https://img.shields.io/badge/Docker-Multi--Stage-2496ED.svg?style=for-the-badge&logo=docker&logoColor=white)](https://www.docker.com/)
-[![Python](https://img.shields.io/badge/Python-3.11-3776AB.svg?style=for-the-badge&logo=python&logoColor=white)](https://www.python.org/)
-[![Jenkins](https://img.shields.io/badge/Jenkins-CI%2FCD-D24939.svg?style=for-the-badge&logo=jenkins&logoColor=white)](https://www.jenkins.io/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg?style=for-the-badge)](LICENSE)
+[![Python](https://img.shields.io/badge/Python-3.12%2B-blue.svg)](https://www.python.org/)
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.110%2B-green.svg)](https://fastapi.tiangolo.com/)
+[![Kubernetes](https://img.shields.io/badge/Kubernetes-Client-326ce5.svg)](https://kubernetes.io/)
+[![Helm](https://img.shields.io/badge/Helm-3-0f1689.svg)](https://helm.sh/)
+[![ArgoCD](https://img.shields.io/badge/Argo%20CD-GitOps-orange.svg)](https://argo-cd.readthedocs.io/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-**KubeHeal** is an autonomous, closed-loop Kubernetes SRE operator engineered to detect container runtime crashes, stream cluster failure events, and apply real-time generative AI intelligence to triage incidents. 
-
-It automatically self-heals transient operational errors (transient exits, pod restarts, rollout reversions) within safe guardrails while instantly compiling structured **Root Cause Analysis (RCA)** incident reports for complex code-level bugs.
+**KubeHeal** is a cloud-native, production-grade **Autonomous Kubernetes SRE Operator** written in Python (FastAPI + Official Kubernetes API Client). It replaces passive cluster alerts and blind restart loops with real-time event streaming, forensic container log collection, intelligent failure triage, and automated GitOps remediation.
 
 ---
 
-## 🏛️ System Architecture Topology
+## 🌟 Key Architecture & Capabilities
 
-```text
-                      ┌────────────────────────────────────────────────────────┐
-                      │              KUBERNETES CLUSTER (Minikube / EKS)       │
-                      │                                                        │
-                      │  [ App Pods / Deployments ] ◄── Packaged via Helm      │
-                      │             │ (Pod Crash / OOM / Error Event)          │
-                      │             ▼                                          │
-                      │      Kube-APIServer (Events API)                       │
-                      └─────────────┬──────────────────────────────────────────┘
-                                    │ (Real-time Stream Watch)
-                                    ▼
-       ┌────────────────────────────────────────────────────────────┐
-       │                 KUBEHEAL OPERATOR / DAEMON                 │
-       │                                                            │
-       │  1. EVENT CAPTURE & CONTEXT COLLECTOR                      │
-       │     • Real-time watch stream for Pod states:               │
-       │       CrashLoopBackOff, OOMKilled, Error, ImagePullBackOff │
-       │     • Extracts: `kubectl logs --tail=50`, pod events,      │
-       │       and previous container exit states                   │
-       │                                                            │
-       │  2. AI SRE TRIAGE ENGINE (Gemini API / LLM)                │
-       │     • Analyzes crash telemetry & stack trace               │
-       │     • Triage Categorization:                               │
-       │       ├─ LEVEL 1: Basic Operational Error (Auto-Fixable)   │
-       │       └─ LEVEL 2: Complex Code/App Bug (Generate RCA)      │
-       │                                                            │
-       │  3. DECISION & REMEDIATION CONTROLLER                      │
-       │     ├─ If LEVEL 1 (Basic Operational Error):               │
-       │     │  • Triggers safe K8s API action:                     │
-       │     │    - Graceful Pod Re-creation via ReplicaSet         │
-       │     │    - Deployment Rollback for bad rollouts            │
-       │     │  • Logs auto-healed alert with sub-second MTTR       │
-       │     │                                                      │
-       │     └─ If LEVEL 2 (Complex Bug / NullPointerException):    │
-       │        • Prevents dangerous infinite restart loops         │
-       │        • Publishes instant Markdown RCA Incident Report    │
-       │          (Root cause, failing line, developer action plan) │
-       └────────────────────────────┬───────────────────────────────┘
-                                    │
-                                    ▼
-       ┌────────────────────────────────────────────────────────────┐
-       │                TELEMETRY & NOTIFICATIONS                   │
-       │   • Webhook Incident Alerts (Slack / Terminal Stream)      │
-       │   • Structured RCA Reports stored in `/reports/*.md`       │
-       │   • Cluster status restored to HEALTHY without manual SRE  │
-       └────────────────────────────────────────────────────────────┘
+```
+              KUBERNETES CLUSTER (EKS / Minikube)
+    ┌────────────────────────────────────────────────────────┐
+    │                                                        │
+    │  [ Failing Workload Pod ]                              │
+    │       │ (OOMKilled / CrashLoopBackOff / Probe Timeout)  │
+    │       ▼                                                │
+    │  [ Kube-APIServer Event Stream ]                       │
+    │       │                                                │
+    └───────┼────────────────────────────────────────────────┘
+            │ (Watch Stream API - Persistent HTTP/2)
+            ▼
+    ┌────────────────────────────────────────────────────────┐
+    │              KUBEHEAL PYTHON SRE OPERATOR              │
+    │                                                        │
+    │ 1. KubeWatcher (app/watcher.py)                        │
+    │    - Listens to APIServer pod lifecycle event stream.  │
+    │    - Intercepts state changes with 0s latency.         │
+    │                                                        │
+    │ 2. Triage & Healing Engine (app/triage_engine.py)       │
+    │    - Pulls dead container logs via previous=True.      │
+    │    - Bifurcates: BASIC_AUTO_FIX vs COMPLEX_CODE_BUG.   │
+    │    - Halts infinite restart loops on OOM (Exit 137).   │
+    │    - Triggers self-healing pod recreations.            │
+    │                                                        │
+    │ 3. Executive SRE Dashboard (app/main.py)               │
+    │    - Fast, dark-mode real-time monitor on port 8090.   │
+    │    - Structured Markdown Root Cause Analysis (RCA).    │
+    └────────────────────────────────────────────────────────┘
 ```
 
----
-
-## ⚡ Incident Triage & Decision Matrix
-
-| Incident Signature | Classification | Automated Remediation Action | Human SRE Required? |
-| :--- | :--- | :--- | :---: |
-| **Transient Container Exit** | `BASIC_AUTO_FIX` | Graceful Pod deletion & ReplicaSet recreation | ❌ Zero human touch |
-| **OOMKilled (Out Of Memory)** | `BASIC_AUTO_FIX` | Resource limit detection & container restart alert | ❌ Auto-mitigated |
-| **ImagePullBackOff / Bad Tag** | `BASIC_AUTO_FIX` | Automatic Deployment Rollout Undo (`v1.rollback`) | ❌ Auto-mitigated |
-| **Java `NullPointerException`** | `COMPLEX_CODE_BUG` | **REPORT_ONLY** (Compiles instant RCA Incident Report) | ✅ Direct developer fix |
-| **Database Connection Failure** | `COMPLEX_CODE_BUG` | **REPORT_ONLY** (Logs host/port network timeout RCA) | ✅ Infrastructure review |
+- **Real-Time Kube-APIServer Event Streamer**: Utilizes `kubernetes.watch.Watch` to intercept pod status modifications with sub-second latency instead of expensive cluster polling loops.
+- **Forensic Log Extraction**: Automatically retrieves previous dead container logs (`previous=True`) and maps termination exit codes (e.g. Exit Code `137` for `OOMKilled`, Exit Code `1` for application exceptions).
+- **Intelligent Triage & Loop Prevention**:
+  - `BASIC_AUTO_FIX`: Safely deletes transiently failing pods, allowing Deployment ReplicaSets to cleanly recreate healthy instances.
+  - `COMPLEX_CODE_BUG`: When memory limits are breached or stack traces persist, it halts blind restarts to protect node resources, generating an instant Markdown Root Cause Analysis (RCA) report.
+- **Enterprise GitOps & Helm 3 Ready**: Complete with a modular Helm 3 chart (`helm/kubeheal`), least-privilege RBAC (`ClusterRole`, `ClusterRoleBinding`, `ServiceAccount`), and declarative Argo CD application manifests (`argocd/kubeheal-app.yaml`).
+- **Lightweight Multi-Stage Docker Build**: Minimal non-root Python Alpine/Slim image (< 80MB) following CIS container security benchmarks.
 
 ---
 
-## 📁 Repository Directory Layout
+## 📂 Repository Structure
 
 ```text
 KubeHeal/
-├── agent/                             # Core Python Autonomous Operator
-│   ├── main.py                        # K8s event watcher & debouncing loop
-│   ├── collector.py                   # Context extraction (logs, events, exit codes)
-│   ├── ai_engine.py                   # LLM integration (Gemini SRE prompt) + heuristic fallback
-│   ├── remediator.py                  # Safe K8s API execution controller
-│   ├── notifier.py                    # Formats Markdown RCA reports & console telemetry
-│   ├── requirements.txt               # Dependencies (kubernetes, requests, etc.)
-│   └── Dockerfile                     # Multi-stage lightweight non-root container build
-├── helm/                              # Production Helm Packaging
-│   └── kubeheal/
-│       ├── Chart.yaml                 # Helm Chart metadata
-│       ├── values.yaml                # Configurable parameters (namespace, resources, limits)
-│       └── templates/
-│           ├── deployment.yaml        # Deployment specification
-│           └── rbac.yaml              # Least-privilege ServiceAccount, ClusterRole & Binding
+├── app/
+│   ├── main.py              # FastAPI server, endpoints (/healthz, /api) & bootstrap
+│   ├── watcher.py           # Kube-APIServer real-time event watcher thread
+│   ├── triage_engine.py     # Log collector, failure classifier & auto-remediation logic
+│   ├── k8s_client.py        # In-cluster ServiceAccount & local kubeconfig loader
+│   ├── models.py            # Pydantic telemetry and incident data models
+│   └── templates/
+│       └── dashboard.html   # Real-time dark-mode Executive SRE Dashboard
+├── helm/kubeheal/           # Production Helm 3 chart
+│   ├── Chart.yaml
+│   ├── values.yaml          # Parameterized resource limits, replicas & ports
+│   └── templates/
+│       ├── deployment.yaml  # Operator Deployment manifest
+│       ├── rbac.yaml        # Least-privilege ClusterRole & ServiceAccount
+│       └── service.yaml     # Service exposing port 8090
+├── argocd/
+│   └── kubeheal-app.yaml    # Declarative GitOps deployment manifest
 ├── cicd/
-│   └── Jenkinsfile                    # Declarative Pipeline (Lint, Build, Dry-Run, Deploy)
-├── chaos-tests/                       # Reproducible Failure Scenarios
-│   ├── 01-transient-crash.yaml        # Simulates transient exit (Trigger: Auto-Heal)
-│   └── 02-java-nullpointer-bug.yaml   # Simulates Spring Boot NullPointer (Trigger: RCA Report)
-└── reports/                           # Output Artifacts
-    └── sample-rca-incident.md         # Example generated Incident Report
+│   └── Jenkinsfile          # Declarative CI/CD pipeline (Lint, Build, Trivy scan, Helm)
+├── chaos-tests/
+│   ├── oom-killed-pod.yaml  # Simulates Out-Of-Memory failure (Exit Code 137)
+│   └── crash-loop-pod.yaml  # Simulates unhandled container application crash
+├── requirements.txt         # Pinned lightweight Python dependencies
+├── Dockerfile               # Multi-stage, non-root hardened container image
+└── README.md
 ```
 
 ---
 
-## 🚀 Quickstart & Verification
+## 🚀 Quickstart & Local Execution
 
-### 1. Deploy KubeHeal via Helm
+### 1. Run Locally with Python:
+Ensure your local Kubernetes cluster (Minikube / Docker Desktop / KinD) is running:
 ```bash
-# Lint the Helm chart
-helm lint ./helm/kubeheal
+# Clone the repository
+git clone https://github.com/Nikhilreddy810/KubeHeal.git
+cd KubeHeal
 
-# Test template rendering & dry-run
-helm upgrade --install kubeheal ./helm/kubeheal --dry-run --debug
+# Install dependencies
+pip install -r requirements.txt
 
-# Install to Kubernetes cluster
-helm install kubeheal ./helm/kubeheal --namespace default
+# Start KubeHeal operator & web dashboard
+uvicorn app.main:app --host 0.0.0.0 --port 8090
 ```
+Open **`http://localhost:8090`** in your browser to view the live Executive SRE Dashboard.
 
-### 2. Verify Operator Pod Running
+---
+
+## 🛠️ Deploy to Kubernetes via Helm 3
+
+Deploy KubeHeal with its configured RBAC into your cluster:
 ```bash
+# Lint the chart
+helm lint helm/kubeheal
+
+# Install or upgrade
+helm upgrade --install kubeheal ./helm/kubeheal --namespace default
+
+# Check status
 kubectl get pods -l app.kubernetes.io/name=kubeheal
 ```
 
-### 3. Trigger Chaos Scenario 1 (Transient Crash ➔ Auto-Healed)
+---
+
+## 🧪 Chaos Testing & Live Verification
+
+Trigger a simulated failure to observe KubeHeal's real-time detection, log capture, and triage:
 ```bash
-kubectl apply -f chaos-tests/01-transient-crash.yaml
+# Inject an OOMKilled failure
+kubectl apply -f chaos-tests/oom-killed-pod.yaml
+
+# Observe KubeHeal logs and dashboard
+# KubeHeal will capture Exit Code 137, halt blind restarts, and generate an RCA report.
 ```
-*Observe KubeHeal logs:*
-```text
-🚨 Incident detected on Pod: test-transient-crash (Reason: CrashLoopBackOff)
-⚡ [KUBEHEAL AUTO-HEALED] Pod: test-transient-crash | Namespace: default
-🎯 Action Executed: RESTART_POD
-💡 Root Cause: Transient container crash or unhandled exit signal.
-```
-
-### 4. Trigger Chaos Scenario 2 (Java NullPointerException ➔ RCA Generated)
-```bash
-kubectl apply -f chaos-tests/02-java-nullpointer-bug.yaml
-```
-*Observe KubeHeal logs:*
-```text
-🚨 Incident detected on Pod: test-java-nullpointer-bug (Reason: Error)
-📝 [KUBEHEAL RCA REPORT GENERATED] Saved to: reports/incident-default-test-java-nullpointer-bug-*.md
-🚨 Summary: Application runtime encountered an unhandled NullPointerException in BookingServiceImpl.
-👉 Action Required: Add null-check on User entity or validate JWT claims before invoking reserveSeat().
-```
-
----
-
-## 📜 Sample Generated RCA Incident Report
-
-Every complex bug caught by KubeHeal generates an actionable, executive Markdown report like this:
-
-> ### 🚨 KubeHeal Incident Root Cause Analysis (RCA)
-> **Incident ID:** `INC-20261031-001`  
-> **Status:** `REQUIRES_DEVELOPER_ACTION`  
-> **Classification:** `COMPLEX_CODE_BUG` (Confidence: 98%)  
-> **Target Pod:** `booking-service-78fbd4-x8k2`  
-> 
-> ### 🔍 Executive Root Cause Summary
-> Application runtime encountered an unhandled NullPointerException in `BookingServiceImpl`.
-> 
-> ### 🛠️ Technical Breakdown
-> - **Identified Defect:** Null customer object passed to `reserveSeat()` at line 142.
-> - **Automated Remediation Attempted:** `REPORT_ONLY` (Prevented recursive failure loops).
-> 
-> ### 💡 Developer Action Plan
-> Add null-check on User entity or validate JWT claims before invoking `reserveSeat()`.
-> 
-> ### 📜 Raw Captured Telemetry
-> ```text
-> java.lang.NullPointerException: Cannot invoke getUserId() because customer is null
->     at com.nikhil.flight.service.BookingServiceImpl.reserveSeat(BookingServiceImpl.java:142)
-> ```
-
----
-
-## 🔒 Security Best Practices
-- **Least-Privilege RBAC:** The operator runs with a dedicated `ServiceAccount` granted only targeted verbs (`get`, `list`, `watch`, `delete` for pods; `patch` for deployments).
-- **Non-Root Execution:** Containerized using a multi-stage Docker build running under non-root UID `10001`.
-- **Debounced Remediation:** Built-in 60-second alert cooldown prevents cascading reboot storms.
-
----
-
-## 👤 Author
-**Nikhil Reddy Levaku**  
-- **Portfolio:** [nikhilreddy810.github.io/portfolio/](https://nikhilreddy810.github.io/portfolio/)  
-- **LinkedIn:** [linkedin.com/in/nikhilreddylevaku/](https://www.linkedin.com/in/nikhilreddylevaku/)  
-- **GitHub:** [@Nikhilreddy810](https://github.com/Nikhilreddy810)  
-- **Email:** levakunikhilreddy8@gmail.com

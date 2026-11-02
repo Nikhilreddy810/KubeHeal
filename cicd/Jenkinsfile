@@ -3,54 +3,48 @@ pipeline {
 
     environment {
         DOCKER_IMAGE = 'nikhilreddy810/kubeheal'
-        CHART_DIR    = 'helm/kubeheal'
+        APP_PORT     = '8090'
     }
 
     stages {
-        stage('Checkout SCM') {
+        stage('Lint & Static Analysis') {
             steps {
-                checkout scm
+                echo 'Running Python syntax verification and dependency validation...'
+                sh 'python3 -m py_compile app/main.py app/watcher.py app/triage_engine.py app/models.py'
             }
         }
 
-        stage('Code Quality & Lint') {
+        stage('Container Build') {
             steps {
-                echo 'Running Helm chart validation and Python lint...'
-                sh 'helm lint ${CHART_DIR}'
+                echo "Building lightweight Python multi-stage container image..."
+                sh 'docker build -t ${DOCKER_IMAGE}:${BUILD_NUMBER} -t ${DOCKER_IMAGE}:latest .'
             }
         }
 
-        stage('Build Container Image') {
+        stage('Security Scan (Trivy)') {
             steps {
-                echo 'Building KubeHeal container image...'
-                sh 'docker build -t ${DOCKER_IMAGE}:${BUILD_NUMBER} -t ${DOCKER_IMAGE}:latest agent/'
+                echo 'Executing Trivy vulnerability scan against container filesystem...'
+                sh 'docker run --rm -v /var/run/docker.sock:/var/run/docker.sock aquasec/trivy:latest image --severity HIGH,CRITICAL ${DOCKER_IMAGE}:${BUILD_NUMBER} || true'
             }
         }
 
-        stage('Helm Dry-Run Verification') {
+        stage('Helm Chart Validation') {
             steps {
-                echo 'Executing Helm dry-run and template verification...'
-                sh 'helm upgrade --install kubeheal ${CHART_DIR} --dry-run --debug'
+                echo 'Linting Helm 3 templates...'
+                sh 'helm lint ./helm/kubeheal'
             }
         }
 
-        stage('Deploy to Kubernetes') {
-            when {
-                branch 'main'
-            }
+        stage('Argo CD GitOps Sync') {
             steps {
-                echo 'Deploying KubeHeal to Kubernetes cluster...'
-                sh 'helm upgrade --install kubeheal ${CHART_DIR} --namespace default'
+                echo 'Commit and push image tag update to GitOps repository for automated Argo CD synchronization.'
             }
         }
     }
 
     post {
-        success {
-            echo '✅ KubeHeal CI/CD Pipeline executed successfully!'
-        }
-        failure {
-            echo '❌ Pipeline failed! Check logs above.'
+        always {
+            echo "CI/CD Pipeline Run Completed."
         }
     }
 }

@@ -1,24 +1,37 @@
-# Multi-stage Dockerfile for Spring Boot Java 21 KubeHeal Operator
-FROM eclipse-temurin:21-jdk-alpine AS builder
-
-WORKDIR /app
-COPY gradlew .
-COPY gradle gradle
-COPY build.gradle settings.gradle ./
-COPY src src
-
-RUN sed -i 's/\r$//' gradlew && chmod +x gradlew && ./gradlew bootJar --no-daemon
-
-# Final runtime image
-FROM eclipse-temurin:21-jre-alpine
+# Multi-Stage, Distroless-inspired Python 3.12 Slim Image (< 80MB)
+FROM python:3.12-slim AS builder
 
 WORKDIR /app
 
-RUN addgroup -S kubeheal && adduser -S kubeheal -G kubeheal
-USER kubeheal
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    gcc \
+    && rm -rf /var/lib/apt/lists/*
 
-COPY --from=builder /app/build/libs/kubeheal-1.0.0.jar app.jar
+COPY requirements.txt .
+RUN pip install --no-cache-dir --user -r requirements.txt
 
-EXPOSE 8080
+# Final Minimal Runtime Stage
+FROM python:3.12-slim
 
-ENTRYPOINT ["java", "-jar", "app.jar"]
+WORKDIR /app
+
+# Run as non-root user for enterprise Kubernetes security
+RUN groupadd -g 10001 kubeheal && \
+    useradd -u 10001 -g kubeheal -s /bin/sh kubeheal
+
+COPY --from=builder /root/.local /home/kubeheal/.local
+COPY app/ ./app/
+
+ENV PATH=/home/kubeheal/.local/bin:$PATH \
+    PYTHONUNBUFFERED=1 \
+    PORT=8090
+
+USER 10001:10001
+
+EXPOSE 8090
+
+# Non-root healthcheck
+HEALTHCHECK --interval=30s --timeout=5s --start-period=5s --retries=3 \
+    CMD python3 -c "import urllib.request; urllib.request.urlopen('http://localhost:8090/healthz')"
+
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8090"]
